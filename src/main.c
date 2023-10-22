@@ -3,7 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "../at.h"
+#include "../include/at.h"
 
 int main(int argc, char **argv) {
 
