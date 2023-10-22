@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "../at.h"
+#include "../include/at.h"
 
 static int state = 0;
 
