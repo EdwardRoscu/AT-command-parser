@@ -1,22 +1,21 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdbool.h>
 #include "../include/at.h"
 
-#define MAX_LINE_NUMBER 1000
+#define MAX_LINE_COUNT 1000
 #define MAX_LINE_SIZE 1000
 #define CARRIAGE_RETURN 13
 #define LINE_FEED 10
 
 struct {
 	int line_count, crt_line_size;
-	char data[MAX_LINE_NUMBER][MAX_LINE_SIZE + 1];
-	bool isOK;
+	char data[MAX_LINE_COUNT][MAX_LINE_SIZE + 1];
+	int isOK;
 } result;
 
 void init();
 int save_char(char ch);
-void end_str();
+int end_str();
 int increase_line_count();
 void print_result();
 int unexpected_char_error(char received, char* expected);
@@ -69,8 +68,7 @@ int at_parse(char ch) {
 		}
 		else if (ch == CARRIAGE_RETURN) {
 			state = 32;
-			end_str();
-			return 0;
+			return end_str();
 		}
 		else return unexpected_char_error(ch, "ASCII between 32 and 126 or [CARRIAGE RETURN]");
 	}
@@ -113,7 +111,7 @@ int at_parse(char ch) {
 	case 4: {
 		if (ch == 'K') {
 			state = 6;
-			result.isOK = true;
+			result.isOK = 1;
 			return 0;
 		}
 		else return unexpected_char_error(ch, "\'K\'");
@@ -142,7 +140,7 @@ int at_parse(char ch) {
 	case 53: {
 		if (ch == 'R') {
 			state = 6;
-			result.isOK = false;
+			result.isOK = 0;
 			return 0;
 		}
 		else return unexpected_char_error(ch, "\'R\'");
@@ -167,55 +165,89 @@ int at_parse(char ch) {
 	return 1;
 }
 
+int max_line_count_was_not_printed;
+
 void init() {
 	result.line_count = 0;
 	result.crt_line_size = 0;
+	max_line_count_was_not_printed = 1;
+}
+
+int max_line_size_was_not_printed = 1;
+
+int is_max_line_size_reached() {
+	if (result.crt_line_size == MAX_LINE_SIZE) {
+		if (max_line_size_was_not_printed) {
+			printf("Maximum line size reached! There wont be any more writtings on line %d!\n", result.line_count);
+			printf("The maximum line size is set to: %d\n\n", MAX_LINE_SIZE);
+			max_line_size_was_not_printed = 0;
+		}
+		return 1;
+	}
+	return 0;
 }
 
 int save_char(char ch) {
-	if (result.crt_line_size == MAX_LINE_SIZE - 1) {
-		printf("Maximum line size reached!\n");
+	if (is_max_line_size_reached() || (max_line_count_was_not_printed == 0)) {
 		return 1;
 	}
 	int line = result.line_count - 1;
 	int pos = result.crt_line_size;
 	result.data[line][pos] = ch;
 	++result.crt_line_size;
+	max_line_size_was_not_printed = 1;
 	return 0;
 }
 
-void end_str() {
+int end_str() {
+	if (max_line_count_was_not_printed == 0) {
+		return 1;
+	}
 	int line = result.line_count - 1;
 	int pos = result.crt_line_size;
 	result.data[line][pos] = '\0';
 	result.crt_line_size = 0;
+	return 0;
+}
+
+int is_max_line_count_reached() {
+	if (result.line_count == MAX_LINE_COUNT) {
+		if (max_line_count_was_not_printed) {
+			printf("Maximum line count reached! There wont be any more writtings!\n");
+			printf("The maximum line count is set to: %d\n\n", MAX_LINE_COUNT);
+			max_line_count_was_not_printed = 0;
+		}
+		return 1;
+	}
+	return 0;
 }
 
 int increase_line_count() {
-	if (result.line_count < MAX_LINE_NUMBER) {
-		++result.line_count;
-		return 0;
-	}
-	else {
-		printf("Maximum line count reached!\n");
+	if (is_max_line_count_reached()) {
 		return 1;
 	}
+	++result.line_count;
+	return 0;
 }
 
 void print_result() {
 	for (int i = 0; i < result.line_count; i++) {
 		printf("%s\n", result.data[i]);
 	}
-	result.isOK ? printf("OK") : printf("ERROR");
-	printf("\n\n");
+	result.isOK ? printf("OK\n\n") : printf("ERROR\n\n");
 }
 
-int unexpected_char_error(char received, char* expected) {
+int print_unexpected_char_error(char received, char* expected) {
 	char* message = (received == CARRIAGE_RETURN) ? "[CARRIAGE RETURN]" :
 		(received == LINE_FEED) ? "[LINE FEED]" :
 		(char[]) {
 		'\'', received, '\'', '\0'
 	};
-	printf("Error at state %d: Received: %s Expected: %s\n", state, message, expected);
+	printf("Error at state %d: Received: %s Expected: %s\n\n", state, message, expected);
+}
+
+int unexpected_char_error(char received, char* expected) {
+	print_unexpected_char_error(received, expected);
+	state = received == CARRIAGE_RETURN;
 	return 1;
 }
